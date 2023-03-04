@@ -1,0 +1,74 @@
+image: tiangolo/docker-with-compose
+
+before_script:
+  - docker login -u gitlab-ci-token -p $CI_JOB_TOKEN $CI_REGISTRY
+  - pip install docker-auto-labels
+
+stages:
+  - test
+  - build
+  - deploy
+
+tests:
+  stage: test
+  script:
+    - sh ./scripts/test.sh
+  tags:
+    - build
+    - test
+
+build-stage:
+  stage: build
+  script:
+    - TAG=stag sh ./scripts/build-push.sh
+  only:
+    - master
+  tags:
+    - build
+    - test
+
+build-prod:
+  stage: build
+  script:
+    - TAG=prod sh ./scripts/build-push.sh
+  only:
+    - production
+  tags:
+    - build
+    - test
+
+deploy-stage:
+  stage: deploy
+  script:
+    - >
+      DOMAIN=stage.opening-hours.com
+      TRAEFIK_TAG=stage.opening-hours.com
+      STACK_NAME=stage-opening-hours-com
+      TAG=stag
+      sh ./scripts/deploy.sh
+  environment:
+    name: staging
+    url: https://stage.opening-hours.com
+  only:
+    - master
+  tags:
+    - swarm
+    - stag
+
+deploy-prod:
+  stage: deploy
+  script:
+    - >
+      DOMAIN=opening-hours.com
+      TRAEFIK_TAG=opening-hours.com
+      STACK_NAME=opening-hours-com
+      TAG=prod
+      sh ./scripts/deploy.sh
+  environment:
+    name: production
+    url: https://opening-hours.com
+  only:
+    - production
+  tags:
+    - swarm
+    - prod
